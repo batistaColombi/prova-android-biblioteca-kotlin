@@ -16,7 +16,16 @@ class LibraryService(private val library: Library) {
      */
     fun catalog(): List<Book> = library.books
 
-    // TODO (Tarefa 1): quantos exemplares deste título estão livres agora?
+    /**
+     * Quantos exemplares deste título estão livres agora.
+     *
+     * Total de cópias menos os empréstimos em aberto do livro.
+     */
+    fun availableCopies(bookId: Int): Int {
+        val book = requireNotNull(library.findBook(bookId)) { "Livro $bookId não encontrado." }
+        val activeLoans = library.loans.count { it.bookId == bookId }
+        return (book.copies - activeLoans).coerceAtLeast(0)
+    }
 
     // TODO (Tarefa 2): busca por título, autor ou gênero.
 

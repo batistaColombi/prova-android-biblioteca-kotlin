@@ -4,8 +4,11 @@ import biblioteca.cli.Command
 import biblioteca.cli.Console
 import biblioteca.data.Library
 import biblioteca.service.LibraryService
+import kotlin.text.Charsets
 
 fun main() {
+    System.setOut(java.io.PrintStream(System.out, true, Charsets.UTF_8))
+    System.setErr(java.io.PrintStream(System.err, true, Charsets.UTF_8))
     val service = LibraryService(Library())
 
     Console.title("Biblioteca")
@@ -52,21 +55,22 @@ private fun showHelp() {
 /**
  * Comando de referência: se ficar em dúvida sobre estilo, copie o que está aqui.
  *
- * TODO (Tarefa 1): hoje a tabela mostra quantos exemplares a biblioteca tem no
- * total. Ela precisa mostrar quantos estão disponíveis agora. Veja o enunciado.
+ * A coluna `livres` vem do service; `total` fica ao lado para deixar claro que
+ * emprestar um exemplar não remove o título do acervo.
  */
 private fun showCatalog(service: LibraryService) {
     val books = service.catalog()
 
     Console.title("Acervo")
     Console.table(
-        headers = listOf("id", "título", "autor", "gênero", "exemplares"),
+        headers = listOf("id", "título", "autor", "gênero", "livres", "total"),
         rows = books.map { book ->
             listOf(
                 book.id.toString(),
                 book.title,
                 book.author,
                 book.genre,
+                service.availableCopies(book.id).toString(),
                 book.copies.toString(),
             )
         },
