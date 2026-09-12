@@ -22,13 +22,14 @@ fun main() {
         when (command.name) {
             "ajuda" -> showHelp()
             "listar" -> showCatalog(service)
+            "buscar" -> showSearch(service, command)
             "sair" -> {
                 Console.info("Até mais.")
                 return
             }
 
             // TODO (Tarefas 2 a 4): implementar os comandos novos aqui.
-            "buscar", "emprestar", "devolver", "membro" ->
+            "emprestar", "devolver", "membro" ->
                 Console.error("comando '${command.name}' ainda não implementado")
 
             else -> Console.error("não conheço o comando '${command.name}'. Tente 'ajuda'.")
@@ -62,6 +63,39 @@ private fun showCatalog(service: LibraryService) {
     val books = service.catalog()
 
     Console.title("Acervo")
+    Console.table(
+        headers = listOf("id", "título", "autor", "gênero", "livres", "total"),
+        rows = books.map { book ->
+            listOf(
+                book.id.toString(),
+                book.title,
+                book.author,
+                book.genre,
+                service.availableCopies(book.id).toString(),
+                book.copies.toString(),
+            )
+        }
+    )
+}
+
+/**
+ * Busca no acervo e mostra no mesmo formato do `listar`.
+ * Termo vazio ou sem resultado viram mensagem; a regra da busca fica no service.
+ */
+private fun showSearch(service: LibraryService, command: Command) {
+    val term = command.arguments.joinToString(" ").trim()
+    if (term.isEmpty()) {
+        Console.error("uso: buscar <termo>")
+        return
+    }
+
+    val books = service.search(term)
+    if (books.isEmpty()) {
+        Console.info("Nenhum livro encontrado para \"$term\".")
+        return
+    }
+
+    Console.title("Busca")
     Console.table(
         headers = listOf("id", "título", "autor", "gênero", "livres", "total"),
         rows = books.map { book ->
