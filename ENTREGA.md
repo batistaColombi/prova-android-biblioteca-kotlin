@@ -11,12 +11,18 @@ sumirem da listagem.
 Criei um método que, para um livro, conta quantos empréstimos ativos existem para aquele
 livro e subtrai do total de cópias. O que sobra é o que está na prateleira.
 
-```kotlin
-fun availableCopies(bookId: Int): Int {
-    val book = requireNotNull(library.findBook(bookId)) { "Livro $bookId não encontrado." }
-    val activeLoans = library.loans.count { it.bookId == bookId }
-    return (book.copies - activeLoans).coerceAtLeast(0)
-}
+### Pseudocódigo
+
+```text
+availableCopies(bookId):
+  livro ← achar livro no acervo
+  ativos ← contar empréstimos com esse bookId
+  livres ← max(0, cópias do livro − ativos)
+  devolver livres
+
+listar:
+  para cada livro do acervo
+    mostrar id, título, autor, gênero, livres, total
 ```
 
 Preferi calcular na hora em vez de guardar um campo "disponíveis" no `Book`: o campo seria
@@ -48,17 +54,27 @@ Para o termo bater com ou sem acento, normalizo o texto antes de comparar: decom
 caracteres (NFD), remove as marcas de acento e passa para minúsculas. Aí `contains`
 funciona igual para `SARAMAGO` e `saramago`, e para `solidao` e `Solidão`.
 
-```kotlin
-fun search(term: String): List<Book> {
-    val needle = normalize(term)
-    if (needle.isEmpty()) return emptyList()
+### Pseudocódigo
 
-    return library.books.filter {
-        normalize(it.title).contains(needle) ||
-            normalize(it.author).contains(needle) ||
-            normalize(it.genre).contains(needle)
-    }
-}
+```text
+normalize(texto):
+  decompor acentos (NFD)
+  remover marcas de acento
+  passar para minúsculas
+
+search(termo):
+  needle ← normalize(termo)
+  se needle vazio → lista vazia
+  filtrar livros onde
+    normalize(título) contém needle
+    OU normalize(autor) contém needle
+    OU normalize(gênero) contém needle
+
+buscar:
+  se termo vazio → erro de uso
+  resultados ← search(termo)
+  se vazio → avisar
+  senão → mesma tabela do listar
 ```
 
 ## O que mudei no que já existia
@@ -102,11 +118,27 @@ confirmação. Calculo isso com `availableCopies` *depois* do `add`/`remove`, pa
 o número já refletir a operação. A ideia foi amarrar a tarefa 3 com a 1: o usuario
 vê na hora o efeito na prateleira, sem precisar rodar `listar`.
 
-```kotlin
-fun borrow(bookId: Int, memberId: Int): ActionResult {
-    // valida livro, membro, cópias livres, atraso e limite de 3
-    // se ok: library.loans.add(...) e devolve Ok com prazo e livres restantes
-}
+### Pseudocódigo
+
+```text
+dueDate(loan) = borrowedAt + 14 dias
+atrasado(loan) = dueDate < hoje
+
+borrow(livro, membro):
+  se livro/membro não existe → Err(motivo)
+  se livres ≤ 0 → Err(sem exemplar)
+  se membro tem atraso → Err(bloqueado)
+  se membro já tem 3 → Err(limite)
+  adicionar Loan(hoje)
+  Ok(prazo + livres restantes)
+
+returnBook(livro, membro):
+  se livro/membro não existe → Err(motivo)
+  se não há empréstimo desse par → Err(não tem)
+  remover Loan
+  Ok(livres restantes)
+
+Main: lê ids → chama service → info/erro
 ```
 
 ## O que mudei no que já existia
@@ -139,10 +171,20 @@ A coluna `situação` (`em dia` / `atrasado`) deixa o atraso visível sem o usua
 fazer conta de cabeça. No seed, `membro 1` (Ana) já mostra o Hobbit atrasado,
 o que serve de prova rápida das regras da tarefa 3.
 
-```kotlin
-fun loansOfMember(memberId: Int): MemberLoansResult {
-    // valida membro → mapeia activeLoansOf para MemberLoanView (prazo + atraso)
-}
+### Pseudocódigo
+
+```text
+loansOfMember(membroId):
+  se membro não existe → Err
+  loans ← empréstimos ativos do membro
+  para cada loan:
+    montar view(título, borrowedAt, dueDate, atrasado?)
+  Ok(nome do membro, lista)
+  // lista vazia = Ok, não Err
+
+membro:
+  se Ok e lista vazia → "nenhum empréstimo"
+  senão → tabela com coluna situação
 ```
 
 ## O que mudei no que já existia
@@ -152,3 +194,53 @@ fun loansOfMember(memberId: Int): MemberLoansResult {
 `Main.kt`: comando membro ligado a `showMember`.
 
 Não mexi de novo em Loan nem nos helpers da tarefa 3 — só reutilizei.
+
+## Bônus — `atrasados`
+
+## Como pensei
+
+O enunciado pedia um relatório com tudo que está atrasado, de todos os membros.
+Já tinha `isOverdue`, `dueDate` e `MemberLoanView` da tarefa 4. Em vez de
+recalcular prazo/atraso no `Main`, filtrei `library.loans` com `isOverdue` e
+reaproveitei a montagem da view.
+
+Para não duplicar o `map` da tarefa 4, extraí `toMemberLoanView`. O
+`loansOfMember` passou a usá-lo também — só refatoração, o comportamento da
+tarefa 4 ficou igual.
+
+`MemberLoanView` não carrega o membro (no `membro <id>` o nome já vem no `Ok`).
+No relatório global precisei do nome: montei um `OverdueLoanRow` com
+`memberId` / `memberName` + o `MemberLoanView`. Lista vazia não é erro — o
+`Main` avisa, como no `buscar` sem resultado. No seed, `atrasados` mostra o
+Hobbit da Ana, o mesmo caso que `membro 1` marca como atrasado.
+
+### Pseudocódigo
+
+```text
+overdueLoans():
+  para cada loan do acervo
+    se isOverdue(loan)
+      incluir linha(membro + view do empréstimo)
+
+atrasados:
+  se lista vazia → avisar
+  senão → tabela global de atrasados
+```
+
+## O que mudei no que já existia
+
+`LibraryService`: `OverdueLoanRow`, `overdueLoans`, `toMemberLoanView` (e `loansOfMember` passou a chamar o helper).
+
+`Main.kt`: comando atrasados ligado a `showOverdue`, entrada na ajuda.
+
+## O que ficou de fora / com mais tempo
+
+Dos bônus do enunciado, fiz o comando de relatório de atrasados. Ficaram de fora os
+testes das regras do service e a persistência dos empréstimos em arquivo — a
+persistência tocaria no ciclo de vida do app e misturaria I/O com o que hoje é só
+memória, e priorizei não arriscar o que já estava estável. Com mais tempo,
+escreveria testes de `availableCopies`, `search`, `borrow`/`returnBook` e o
+bloqueio por atraso, extrairia a montagem da tabela comum do `listar`/`buscar` para
+um helper no `cli`, unificaria `ActionResult` e `MemberLoansResult` num `Result`
+genérico, e guardaria os empréstimos em arquivo mantendo a regra no service e o
+I/O separado.

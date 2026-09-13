@@ -26,6 +26,7 @@ fun main() {
             "emprestar" -> showBorrow(service, command)
             "devolver" -> showReturn(service, command)
             "membro" -> showMember(service, command)
+            "atrasados" -> showOverdue(service)
             "sair" -> {
                 Console.info("Até mais.")
                 return
@@ -45,6 +46,7 @@ private fun showHelp() {
             listOf("emprestar <livro> <membro>", "empresta um exemplar a um membro"),
             listOf("devolver <livro> <membro>", "devolve um exemplar"),
             listOf("membro <id>", "mostra os empréstimos de um membro"),
+            listOf("atrasados", "lista empréstimos atrasados de todos os membros"),
             listOf("ajuda", "mostra esta lista"),
             listOf("sair", "encerra o programa"),
         ),
@@ -178,4 +180,26 @@ private fun showMember(service: LibraryService, command: Command) {
             )
         }
     }
+}
+
+private fun showOverdue(service: LibraryService) {
+    val loans = service.overdueLoans()
+    Console.title("Empréstimos atrasados")
+    if (loans.isEmpty()) {
+        Console.info("Nenhum empréstimo atrasado.")
+        return
+    }
+    Console.table(
+        headers = listOf("membro", "nome", "livro", "título", "emprestado em", "devolver até"),
+        rows = loans.map { row ->
+            listOf(
+                row.memberId.toString(),
+                row.memberName,
+                row.loan.bookId.toString(),
+                row.loan.title,
+                row.loan.borrowedAt.toString(),
+                row.loan.dueDate.toString(),
+            )
+        },
+    )
 }

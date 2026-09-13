@@ -140,17 +140,40 @@ class LibraryService(private val library: Library) {
         val member = library.findMember(memberId)
             ?: return MemberLoansResult.Err("membro $memberId não encontrado")
 
-        val loans = activeLoansOf(memberId).map { loan ->
-            val book = library.findBook(loan.bookId)
-            MemberLoanView(
-                bookId = loan.bookId,
-                title = book?.title ?: "(livro ${loan.bookId})",
-                borrowedAt = loan.borrowedAt,
-                dueDate = dueDate(loan),
-                overdue = isOverdue(loan),
-            )
-        }
-
+        val loans = activeLoansOf(memberId).map { toMemberLoanView(it) }
         return MemberLoansResult.Ok(member.name, loans)
+    }
+
+    /**
+     * Relatório: todos os empréstimos atrasados (todos os membros).
+     * Reaproveita isOverdue, dueDate e MemberLoanView.
+     */
+    data class OverdueLoanRow(
+        val memberId: Int,
+        val memberName: String,
+        val loan: MemberLoanView,
+    )
+
+    fun overdueLoans(): List<OverdueLoanRow> =
+        library.loans
+            .filter { isOverdue(it) }
+            .map { loan ->
+                val member = library.findMember(loan.memberId)
+                OverdueLoanRow(
+                    memberId = loan.memberId,
+                    memberName = member?.name ?: "(membro ${loan.memberId})",
+                    loan = toMemberLoanView(loan),
+                )
+            }
+
+    private fun toMemberLoanView(loan: Loan): MemberLoanView {
+        val book = library.findBook(loan.bookId)
+        return MemberLoanView(
+            bookId = loan.bookId,
+            title = book?.title ?: "(livro ${loan.bookId})",
+            borrowedAt = loan.borrowedAt,
+            dueDate = dueDate(loan),
+            overdue = isOverdue(loan),
+        )
     }
 }
