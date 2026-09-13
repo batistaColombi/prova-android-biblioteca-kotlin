@@ -99,7 +99,7 @@ Além do enunciado, tratei devolução sem empréstimo daquele livro+membro. Tam
 decidi, nas mensagens de sucesso do emprestar e do devolver, mostrar quantos
 exemplares daquele título ainda restam livres — em outra linha, depois da
 confirmação. Calculo isso com `availableCopies` *depois* do `add`/`remove`, para
-o número já refletir a operação. A ideia foi amarrar a tarefa 3 com a 1: o usuário
+o número já refletir a operação. A ideia foi amarrar a tarefa 3 com a 1: o usuario
 vê na hora o efeito na prateleira, sem precisar rodar `listar`.
 
 ```kotlin
@@ -116,3 +116,39 @@ fun borrow(bookId: Int, memberId: Int): ActionResult {
 `Main.kt`: emprestar / devolver ligados a `showBorrow` / `showReturn`.
 
 `Loan` e `Library` ficaram iguais — só passamos a usar a lista mutável de empréstimos de verdade.
+
+## Tarefa 4 — `membro <id>`
+
+## Como pensei
+
+O enunciado pedia os empréstimos ativos do membro, a data de devolução de cada um
+e quais estavam atrasados. A maior parte disso já existia na tarefa 3: a lista do
+membro (`activeLoansOf`), o prazo (`dueDate`) e o atraso (`isOverdue`). A tarefa 4
+foi juntar esses pedaços numa resposta que o `Main` consegue mostrar.
+
+Em vez de o service devolver só `List<Loan>` (aí o `Main` teria que calcular prazo
+e atraso), montei um `MemberLoanView` com título, datas e flag `overdue`. Assim a
+regra continua no service e o `Main` só monta a tabela — mesmo padrão das outras
+tarefas.
+
+Para membro inexistente usei um `MemberLoansResult` (`Ok` / `Err`), no mesmo
+espírito do `ActionResult`. Lista vazia não é erro: o membro existe, só não tem
+nada em mãos — aí o `Main` avisa com mensagem, como no `buscar` sem resultado.
+
+A coluna `situação` (`em dia` / `atrasado`) deixa o atraso visível sem o usuario
+fazer conta de cabeça. No seed, `membro 1` (Ana) já mostra o Hobbit atrasado,
+o que serve de prova rápida das regras da tarefa 3.
+
+```kotlin
+fun loansOfMember(memberId: Int): MemberLoansResult {
+    // valida membro → mapeia activeLoansOf para MemberLoanView (prazo + atraso)
+}
+```
+
+## O que mudei no que já existia
+
+`LibraryService`: `MemberLoanView`, `MemberLoansResult` e `loansOfMember`.
+
+`Main.kt`: comando membro ligado a `showMember`.
+
+Não mexi de novo em Loan nem nos helpers da tarefa 3 — só reutilizei.

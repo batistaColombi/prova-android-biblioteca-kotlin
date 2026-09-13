@@ -25,15 +25,11 @@ fun main() {
             "buscar" -> showSearch(service, command)
             "emprestar" -> showBorrow(service, command)
             "devolver" -> showReturn(service, command)
+            "membro" -> showMember(service, command)
             "sair" -> {
                 Console.info("Até mais.")
                 return
             }
-
-            // TODO (Tarefas 2 a 4): implementar os comandos novos aqui.
-            "membro" ->
-                Console.error("comando '${command.name}' ainda não implementado")
-
             else -> Console.error("não conheço o comando '${command.name}'. Tente 'ajuda'.")
         }
     }
@@ -144,5 +140,42 @@ private fun showReturn(service: LibraryService, command: Command) {
     when (val result = service.returnBook(bookId, memberId)) {
         is LibraryService.ActionResult.Ok -> Console.info(result.message)
         is LibraryService.ActionResult.Err -> Console.error(result.message)
+    }
+}
+
+/**
+ * Mostra os empréstimos ativos do membro, com prazo e se está atrasado.
+ * Os dados vêm do service; aqui só monto a tabela.
+ */
+private fun showMember(service: LibraryService, command: Command) {
+    val memberId = command.argument(0)?.toIntOrNull()
+    if (memberId == null) {
+        Console.error("uso: membro <id>")
+        return
+    }
+
+    when (val result = service.loansOfMember(memberId)) {
+        is LibraryService.MemberLoansResult.Err -> {
+            Console.error(result.message)
+        }
+        is LibraryService.MemberLoansResult.Ok -> {
+            Console.title("Membro: ${result.memberName}")
+            if (result.loans.isEmpty()) {
+                Console.info("Nenhum empréstimo ativo.")
+                return
+            }
+            Console.table(
+                headers = listOf("livro", "título", "emprestado em", "devolver até", "situação"),
+                rows = result.loans.map { loan ->
+                    listOf(
+                        loan.bookId.toString(),
+                        loan.title,
+                        loan.borrowedAt.toString(),
+                        loan.dueDate.toString(),
+                        if (loan.overdue) "atrasado" else "em dia",
+                    )
+                },
+            )
+        }
     }
 }

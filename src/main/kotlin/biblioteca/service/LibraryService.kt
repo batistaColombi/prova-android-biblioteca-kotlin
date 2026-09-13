@@ -119,5 +119,38 @@ class LibraryService(private val library: Library) {
         )
     }
 
-    // TODO (Tarefa 4): o que um membro tem em mãos, e o que está atrasado.
+    /**
+     * Empréstimos ativos do membro, com prazo e se está atrasado.
+     * Reaproveita activeLoansOf, dueDate e isOverdue da tarefa 3.
+     */
+    data class MemberLoanView(
+        val bookId: Int,
+        val title: String,
+        val borrowedAt: LocalDate,
+        val dueDate: LocalDate,
+        val overdue: Boolean,
+    )
+
+    sealed class MemberLoansResult {
+        data class Ok(val memberName: String, val loans: List<MemberLoanView>) : MemberLoansResult()
+        data class Err(val message: String) : MemberLoansResult()
+    }
+
+    fun loansOfMember(memberId: Int): MemberLoansResult {
+        val member = library.findMember(memberId)
+            ?: return MemberLoansResult.Err("membro $memberId não encontrado")
+
+        val loans = activeLoansOf(memberId).map { loan ->
+            val book = library.findBook(loan.bookId)
+            MemberLoanView(
+                bookId = loan.bookId,
+                title = book?.title ?: "(livro ${loan.bookId})",
+                borrowedAt = loan.borrowedAt,
+                dueDate = dueDate(loan),
+                overdue = isOverdue(loan),
+            )
+        }
+
+        return MemberLoansResult.Ok(member.name, loans)
+    }
 }
