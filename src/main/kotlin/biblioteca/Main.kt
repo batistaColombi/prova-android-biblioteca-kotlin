@@ -4,6 +4,7 @@ import biblioteca.cli.Command
 import biblioteca.cli.Console
 import biblioteca.data.Library
 import biblioteca.service.LibraryService
+import biblioteca.service.LibraryService.Companion.MAX_LOANS_PER_MEMBER
 import kotlin.text.Charsets
 
 fun main() {
@@ -27,6 +28,7 @@ fun main() {
             "devolver" -> showReturn(service, command)
             "membro" -> showMember(service, command)
             "atrasados" -> showOverdue(service)
+            "limite" -> showAtLimit(service)
             "sair" -> {
                 Console.info("Até mais.")
                 return
@@ -47,6 +49,7 @@ private fun showHelp() {
             listOf("devolver <livro> <membro>", "devolve um exemplar"),
             listOf("membro <id>", "mostra os empréstimos de um membro"),
             listOf("atrasados", "lista empréstimos atrasados de todos os membros"),
+            listOf("limite", "lista membros no limite de empréstimos"),
             listOf("ajuda", "mostra esta lista"),
             listOf("sair", "encerra o programa"),
         ),
@@ -182,6 +185,10 @@ private fun showMember(service: LibraryService, command: Command) {
     }
 }
 
+/**
+ * Mostra os empréstimos ativos do membro, com prazo e se está atrasado.
+ * Os dados vêm do service; aqui só monto a tabela.
+ */
 private fun showOverdue(service: LibraryService) {
     val loans = service.overdueLoans()
     Console.title("Empréstimos atrasados")
@@ -199,6 +206,29 @@ private fun showOverdue(service: LibraryService) {
                 row.loan.title,
                 row.loan.borrowedAt.toString(),
                 row.loan.dueDate.toString(),
+            )
+        },
+    )
+}
+
+/**
+ * Mostra os membros que já atingiram o limite de empréstimos.
+ * Os dados vêm do service; aqui só monto a tabela.
+ */
+private fun showAtLimit(service: LibraryService) {
+    val rows = service.membersAtLoanLimit()
+    Console.title("Membros no limite de empréstimos")
+    if (rows.isEmpty()) {
+        Console.info("Nenhum membro no limite de $MAX_LOANS_PER_MEMBER empréstimos.")
+        return
+    }
+    Console.table(
+        headers = listOf("membro", "nome", "empréstimos"),
+        rows = rows.map { row ->
+            listOf(
+                row.memberId.toString(),
+                row.memberName,
+                row.loanCount.toString(),
             )
         },
     )

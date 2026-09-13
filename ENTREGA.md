@@ -233,14 +233,53 @@ atrasados:
 
 `Main.kt`: comando atrasados ligado a `showOverdue`, entrada na ajuda.
 
+## Bônus — `limite`
+
+## Como pensei
+
+A tarefa 3 já bloqueia quem tem 3 empréstimos, mas isso só aparecia na hora do
+`emprestar`. Quis um relatório no mesmo espírito do `atrasados`: ver de uma vez
+quem já está no teto e não pode pegar mais.
+
+A diferença é o foco. `atrasados` lista **empréstimos**; aqui o objeto é o
+**membro**. Reaproveitei `activeLoansOf` e a constante `MAX_LOANS_PER_MEMBER`
+em vez de espalhar o número `3` de novo. Montei um `MemberAtLimitRow` com id,
+nome e quantidade — o suficiente para a tabela, sem recalcular regra no `Main`.
+
+Lista vazia não é erro: o `Main` avisa, como no `atrasados` e no `buscar`. No
+seed ninguém começa com 3, então o comando só mostra alguém depois de emprestar
+até o limite (e quem está atrasado não chega lá enquanto não devolver).
+
+### Pseudocódigo
+
+```text
+membersAtLoanLimit():
+  para cada membro do acervo
+    count ← tamanho de activeLoansOf(membro)
+    se count ≥ MAX_LOANS_PER_MEMBER
+      incluir linha(id, nome, count)
+
+limite:
+  se lista vazia → avisar
+  senão → tabela de membros no teto
+```
+
+## O que mudei no que já existia
+
+`LibraryService`: `MemberAtLimitRow` e `membersAtLoanLimit`.
+
+`Main.kt`: comando limite ligado a `showAtLimit`, entrada na ajuda.
+
+Não mexi nas regras do `borrow` — só tornei o limite visível num relatório.
+
 ## O que ficou de fora / com mais tempo
 
-Dos bônus do enunciado, fiz o comando de relatório de atrasados. Ficaram de fora os
-testes das regras do service e a persistência dos empréstimos em arquivo — a
-persistência tocaria no ciclo de vida do app e misturaria I/O com o que hoje é só
-memória, e priorizei não arriscar o que já estava estável. Com mais tempo,
-escreveria testes de `availableCopies`, `search`, `borrow`/`returnBook` e o
-bloqueio por atraso, extrairia a montagem da tabela comum do `listar`/`buscar` para
-um helper no `cli`, unificaria `ActionResult` e `MemberLoansResult` num `Result`
-genérico, e guardaria os empréstimos em arquivo mantendo a regra no service e o
-I/O separado.
+Dos bônus do enunciado, fiz o relatório de atrasados e o de membros no limite.
+Ficaram de fora os testes das regras do service e a persistência dos empréstimos
+em arquivo — a persistência tocaria no ciclo de vida do app e misturaria I/O com
+o que hoje é só memória, e priorizei não arriscar o que já estava estável. Com
+mais tempo, escreveria testes de `availableCopies`, `search`, `borrow`/`returnBook`
+e o bloqueio por atraso/limite, extrairia a montagem da tabela comum do
+`listar`/`buscar` para um helper no `cli`, unificaria `ActionResult` e
+`MemberLoansResult` num `Result` genérico, e guardaria os empréstimos em arquivo
+mantendo a regra no service e o I/O separado.

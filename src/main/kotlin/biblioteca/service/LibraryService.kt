@@ -165,6 +165,25 @@ class LibraryService(private val library: Library) {
                     loan = toMemberLoanView(loan),
                 )
             }
+    /**
+     * Relatório: membros que já atingiram o limite de empréstimos.
+     */
+    data class MemberAtLimitRow(
+        val memberId: Int,
+        val memberName: String,
+        val loanCount: Int,
+    )
+
+    fun membersAtLoanLimit(): List<MemberAtLimitRow> =
+        library.members
+            .map { member ->
+                MemberAtLimitRow(
+                    memberId = member.id,
+                    memberName = member.name,
+                    loanCount = activeLoansOf(member.id).size,
+                )
+            }
+            .filter { it.loanCount >= MAX_LOANS_PER_MEMBER }
 
     private fun toMemberLoanView(loan: Loan): MemberLoanView {
         val book = library.findBook(loan.bookId)
