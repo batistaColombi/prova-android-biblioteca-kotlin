@@ -67,4 +67,52 @@ fun search(term: String): List<Book> {
 
 - `Main.kt`: liguei o comando buscar a showSearch, no mesmo estilo do showCatalog.
 
-## Tarefa 3 — 
+## Tarefa 3 — `emprestar` e `devolver`
+
+## Como pensei
+
+O enunciado pedia regras (14 dias, no máximo 3, bloqueio por atraso) e motivo em
+toda recusa. A dúvida era onde isso mora: se o `Main` validasse, a regra se
+misturava com a tela. Mantive o padrão das tarefas anteriores — o service decide,
+o `Main` só exibe.
+
+Precisei de um jeito do service falar “deu certo” ou “não deu” sem `println`.
+Criei o `ActionResult` (`Ok` / `Err`) com a mensagem pronta. Assim o `Main` fica
+fino: lê os ids, chama `borrow`/`returnBook` e despacha para `Console.info` ou
+`Console.error`.
+
+Para o atraso, partimos do que o `Loan` já tinha (`borrowedAt`). Não precisei
+mudar o modelo: a data limite é `borrowedAt + 14`, e atrasado é quando essa data
+já passou. Os helpers `dueDate`, `isOverdue` e `activeLoansOf` concentraram isso
+num lugar só — e já servem para a tarefa 4.
+
+Na hora de saber se dava para emprestar, vi que a tarefa 1 já resolvia a
+prateleira: `availableCopies`. Reaproveitei em vez de duplicar a conta
+“cópias − empréstimos”. Emprestar vira `add` na lista; devolver vira `remove`.
+A disponibilidade acompanha sozinha.
+
+Ordem das validações: primeiro “existe livro/membro?”, depois “tem cópia?”,
+depois “está atrasado?” e “já tem 3?”. Assim a mensagem de erro aponta o motivo
+certo, sem checagens à toa.
+
+Além do enunciado, tratei devolução sem empréstimo daquele livro+membro. Também
+decidi, nas mensagens de sucesso do emprestar e do devolver, mostrar quantos
+exemplares daquele título ainda restam livres — em outra linha, depois da
+confirmação. Calculo isso com `availableCopies` *depois* do `add`/`remove`, para
+o número já refletir a operação. A ideia foi amarrar a tarefa 3 com a 1: o usuário
+vê na hora o efeito na prateleira, sem precisar rodar `listar`.
+
+```kotlin
+fun borrow(bookId: Int, memberId: Int): ActionResult {
+    // valida livro, membro, cópias livres, atraso e limite de 3
+    // se ok: library.loans.add(...) e devolve Ok com prazo e livres restantes
+}
+```
+
+## O que mudei no que já existia
+
+`LibraryService`: empréstimo, devolução, helpers de prazo/atraso e `ActionResult`.
+
+`Main.kt`: emprestar / devolver ligados a `showBorrow` / `showReturn`.
+
+`Loan` e `Library` ficaram iguais — só passamos a usar a lista mutável de empréstimos de verdade.

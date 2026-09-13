@@ -2,7 +2,9 @@ package biblioteca.service
 
 import biblioteca.data.Library
 import biblioteca.model.Book
+import biblioteca.model.Loan
 import java.text.Normalizer
+import java.time.LocalDate
 
 /**
  * Onde moram as regras da biblioteca.
@@ -49,7 +51,73 @@ class LibraryService(private val library: Library) {
             .replace(Regex("\\p{M}+"), "")
             .lowercase()
     }
-    // TODO (Tarefa 3): emprestar e devolver, com as regras do enunciado.
+
+    /**
+     * Empréstimo e devolução (tarefa 3).
+     * Prazo de 14 dias, no máximo 3 por membro, e quem está atrasado não empresta.
+     * Devolve Ok/Err com a mensagem; quem imprime é o Main.
+     */
+    companion object {
+        const val LOAN_DAYS = 14L
+        const val MAX_LOANS_PER_MEMBER = 3
+    }
+
+    sealed class ActionResult {
+        data class Ok(val message: String) : ActionResult()
+        data class Err(val message: String) : ActionResult()
+    }
+
+    fun dueDate(loan: Loan): LocalDate = loan.borrowedAt.plusDays(LOAN_DAYS)
+
+    fun isOverdue(loan: Loan, today: LocalDate = LocalDate.now()): Boolean =
+        dueDate(loan).isBefore(today)
+
+    fun activeLoansOf(memberId: Int): List<Loan> =
+        library.loans.filter { it.memberId == memberId }
+
+    fun borrow(bookId: Int, memberId: Int): ActionResult {
+        val book = library.findBook(bookId)
+            ?: return ActionResult.Err("livro $bookId não encontrado")
+        val member = library.findMember(memberId)
+            ?: return ActionResult.Err("membro $memberId não encontrado")
+
+        if (availableCopies(bookId) <= 0) {
+            return ActionResult.Err("\"${book.title}\" não tem exemplares livres")
+        }
+
+        val memberLoans = activeLoansOf(memberId)
+        if (memberLoans.any { isOverdue(it) }) {
+            return ActionResult.Err("${member.name} tem devolução atrasada e não pode emprestar")
+        }
+        if (memberLoans.size >= MAX_LOANS_PER_MEMBER) {
+            return ActionResult.Err("${member.name} já tem $MAX_LOANS_PER_MEMBER empréstimos")
+        }
+
+        library.loans.add(Loan(bookId, memberId, LocalDate.now()))
+        val until = LocalDate.now().plusDays(LOAN_DAYS)
+        val livres = availableCopies(bookId)
+        return ActionResult.Ok(
+            "${member.name} pegou \"${book.title}\".\nDevolver até $until.\nRestam $livres exemplar(es) livre(s)."
+        )
+    }
+
+    fun returnBook(bookId: Int, memberId: Int): ActionResult {
+        val book = library.findBook(bookId)
+            ?: return ActionResult.Err("livro $bookId não encontrado")
+        val member = library.findMember(memberId)
+            ?: return ActionResult.Err("membro $memberId não encontrado")
+
+        val loan = library.loans.find { it.bookId == bookId && it.memberId == memberId }
+            ?: return ActionResult.Err(
+                "${member.name} não tem empréstimo ativo de \"${book.title}\""
+            )
+
+        library.loans.remove(loan)
+        val livres = availableCopies(bookId)
+        return ActionResult.Ok(
+            "${member.name} devolveu \"${book.title}\".\nRestam $livres exemplar(es) livre(s)."
+        )
+    }
 
     // TODO (Tarefa 4): o que um membro tem em mãos, e o que está atrasado.
 }

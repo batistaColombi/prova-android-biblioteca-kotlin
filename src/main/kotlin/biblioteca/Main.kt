@@ -23,13 +23,15 @@ fun main() {
             "ajuda" -> showHelp()
             "listar" -> showCatalog(service)
             "buscar" -> showSearch(service, command)
+            "emprestar" -> showBorrow(service, command)
+            "devolver" -> showReturn(service, command)
             "sair" -> {
                 Console.info("Até mais.")
                 return
             }
 
             // TODO (Tarefas 2 a 4): implementar os comandos novos aqui.
-            "emprestar", "devolver", "membro" ->
+            "membro" ->
                 Console.error("comando '${command.name}' ainda não implementado")
 
             else -> Console.error("não conheço o comando '${command.name}'. Tente 'ajuda'.")
@@ -109,4 +111,38 @@ private fun showSearch(service: LibraryService, command: Command) {
             )
         },
     )
+}
+
+/**
+ * Empresta um exemplar. A regra fica no service; aqui só leio os ids e mostro o resultado.
+ */
+private fun showBorrow(service: LibraryService, command: Command) {
+    val bookId = command.argument(0)?.toIntOrNull()
+    val memberId = command.argument(1)?.toIntOrNull()
+    if (bookId == null || memberId == null) {
+        Console.error("uso: emprestar <livro> <membro>")
+        return
+    }
+
+    when (val result = service.borrow(bookId, memberId)) {
+        is LibraryService.ActionResult.Ok -> Console.info(result.message)
+        is LibraryService.ActionResult.Err -> Console.error(result.message)
+    }
+}
+
+/**
+ * Devolve um exemplar. Mesmo padrão do emprestar.
+ */
+private fun showReturn(service: LibraryService, command: Command) {
+    val bookId = command.argument(0)?.toIntOrNull()
+    val memberId = command.argument(1)?.toIntOrNull()
+    if (bookId == null || memberId == null) {
+        Console.error("uso: devolver <livro> <membro>")
+        return
+    }
+
+    when (val result = service.returnBook(bookId, memberId)) {
+        is LibraryService.ActionResult.Ok -> Console.info(result.message)
+        is LibraryService.ActionResult.Err -> Console.error(result.message)
+    }
 }
