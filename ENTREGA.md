@@ -272,14 +272,50 @@ limite:
 
 Não mexi nas regras do `borrow` — só tornei o limite visível num relatório.
 
-## O que ficou de fora / com mais tempo
+## Bônus — testes do `LibraryService`
 
-Dos bônus do enunciado, fiz o relatório de atrasados e o de membros no limite.
-Ficaram de fora os testes das regras do service e a persistência dos empréstimos
-em arquivo — a persistência tocaria no ciclo de vida do app e misturaria I/O com
-o que hoje é só memória, e priorizei não arriscar o que já estava estável. Com
-mais tempo, escreveria testes de `availableCopies`, `search`, `borrow`/`returnBook`
-e o bloqueio por atraso/limite, extrairia a montagem da tabela comum do
-`listar`/`buscar` para um helper no `cli`, unificaria `ActionResult` e
-`MemberLoansResult` num `Result` genérico, e guardaria os empréstimos em arquivo
-mantendo a regra no service e o I/O separado.
+## Como pensei
+
+O README aponta testes de regra de negócio como primeiro bônus e já deixa um
+`CommandTest` de modelo em `src/test`. Quis o mesmo estilo: poucos testes curtos,
+só `kotlin.test`, sem lib externa, cobrindo o que o service decide — não a CLI.
+
+Cada `@Test` cria uma `Library()` nova e um `LibraryService` em cima dela. Assim
+um `borrow`/`returnBook` não contamina o próximo caso. Usei o seed que já vem
+no acervo em vez de montar dados à mão: o custo cai e os cenários batem com o
+que o app mostra no terminal (`membro 1` atrasado, Duna com cópias emprestadas).
+
+Cinco testes, no ponto em que a regra mora:
+
+1. `availableCopies(1)` — Duna tem 3 cópias e 2 empréstimos no seed → 1 livre.
+2. `search` — `solidao` (sem acento), `SARAMAGO` (caixa) e termo inexistente.
+3. `borrow(7, 1)` — Ana (membro 1) está atrasada → `Err` com “atrasada”.
+4. Diego (membro 4) empresta 3 vezes e falha no 4º → limite de 3.
+5. `returnBook(1, 3)` — Carla devolve Duna → `Ok` e livres sobe 1.
+
+Não testei o `Main` nem o parse de comando de novo: o `CommandTest` já cobre o
+CLI de entrada, e o bônus pedia as regras. Também não fiz helper/`@BeforeTest`
+nem assert da mensagem inteira — para este tamanho de projeto isso só aumentaria
+ruído.
+
+### Pseudocódigo
+
+```text
+para cada teste:
+  library ← Library()          // seed fresco
+  service ← LibraryService(library)
+  chamar availableCopies / search / borrow / returnBook
+  assertEquals / assertTrue no resultado
+```
+
+## O que mudei no que já existia
+
+`src/test/kotlin/biblioteca/LibraryServiceTest.kt`: arquivo novo com os cinco
+testes acima.
+
+Não alterei `LibraryService` nem o seed para “facilitar” o teste — os asserts
+seguem o comportamento que já estava na entrega.
+
+Rodar: `./gradlew test`.
+
+## O que ficou de fora / com mais tempo
