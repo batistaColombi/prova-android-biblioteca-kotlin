@@ -3,6 +3,8 @@ package biblioteca
 import biblioteca.cli.Command
 import biblioteca.cli.Console
 import biblioteca.data.Library
+import biblioteca.data.LoanStore
+import biblioteca.data.ReturnStore
 import biblioteca.service.LibraryService
 import biblioteca.service.LibraryService.Companion.MAX_LOANS_PER_MEMBER
 import kotlin.text.Charsets
@@ -10,7 +12,16 @@ import kotlin.text.Charsets
 fun main() {
     System.setOut(java.io.PrintStream(System.out, true, Charsets.UTF_8))
     System.setErr(java.io.PrintStream(System.err, true, Charsets.UTF_8))
-    val service = LibraryService(Library())
+
+    val loanStore = LoanStore()
+    val returnStore = ReturnStore()
+    val loaded = loanStore.load()
+    val library = Library(initialLoans = loaded)
+    val service = LibraryService(library, loanStore, returnStore)
+
+    if (loaded == null) {
+        loanStore.save(library.loans)
+    }
 
     Console.title("Biblioteca")
     Console.info("Digite 'ajuda' para ver os comandos, 'sair' para encerrar.")

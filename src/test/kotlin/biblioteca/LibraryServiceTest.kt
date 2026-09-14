@@ -4,9 +4,11 @@ import biblioteca.data.Library
 import biblioteca.service.LibraryService
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class LibraryServiceTest {
+
     @Test
     fun `Duna tem 1 exemplar livre`() {
         val service = LibraryService(Library())
@@ -37,8 +39,9 @@ class LibraryServiceTest {
         )
     }
 
+    /** Diego (4) não tem atraso no seed — o bloqueio é só pelo teto de 3. */
     @Test
-    fun `membro nao passa de 3 emprestimos`() {
+    fun `membro no limite sem atraso nao empresta o quarto`() {
         val service = LibraryService(Library())
 
         assertTrue(service.borrow(7, 4) is LibraryService.ActionResult.Ok)
@@ -48,11 +51,9 @@ class LibraryServiceTest {
         val quarto = service.borrow(10, 4)
 
         assertTrue(quarto is LibraryService.ActionResult.Err)
-        assertTrue(
-            (quarto as LibraryService.ActionResult.Err)
-                .message
-                .contains("3 empréstimos")
-        )
+        val mensagem = (quarto as LibraryService.ActionResult.Err).message
+        assertTrue(mensagem.contains("3 empréstimos"))
+        assertFalse(mensagem.contains("atrasada"))
     }
 
     @Test
@@ -64,5 +65,20 @@ class LibraryServiceTest {
 
         assertTrue(resultado is LibraryService.ActionResult.Ok)
         assertEquals(antes + 1, service.availableCopies(1))
+    }
+
+    @Test
+    fun `devolver inexistente falha`() {
+        val service = LibraryService(Library())
+
+        // Diego (4) não tem empréstimo de Duna (1) no seed
+        val resultado = service.returnBook(1, 4)
+
+        assertTrue(resultado is LibraryService.ActionResult.Err)
+        assertTrue(
+            (resultado as LibraryService.ActionResult.Err)
+                .message
+                .contains("não tem empréstimo ativo")
+        )
     }
 }

@@ -9,10 +9,11 @@ import java.time.LocalDate
  * O acervo da biblioteca, em memória.
  *
  * Faz o papel de banco de dados: guarda os dados e não conhece nenhuma regra.
- * Os empréstimos já vêm com alguns registros em aberto.
+ * [initialLoans] null → seed de demonstração; lista (mesmo vazia) → veio do arquivo.
  */
-class Library {
-
+class Library(
+    initialLoans: List<Loan>? = null,
+) {
     val books: List<Book> = listOf(
         Book(1, "Duna", "Frank Herbert", "Ficção Científica", copies = 3),
         Book(2, "Ensaio sobre a Cegueira", "José Saramago", "Romance", copies = 2),
@@ -35,12 +36,16 @@ class Library {
         Member(4, "Diego Farias"),
     )
 
-    val loans: MutableList<Loan> = mutableListOf(
-        Loan(bookId = 1, memberId = 1, borrowedAt = LocalDate.now().minusDays(3)),
-        Loan(bookId = 5, memberId = 1, borrowedAt = LocalDate.now().minusDays(20)),
-        Loan(bookId = 6, memberId = 2, borrowedAt = LocalDate.now().minusDays(5)),
-        Loan(bookId = 1, memberId = 3, borrowedAt = LocalDate.now().minusDays(10)),
-    )
+    // Se o Main passou uma lista (veio do arquivo), usa ela.
+    // Se passou null (primeira vez / testes), usa o seed de sempre.
+    val loans: MutableList<Loan> = (
+        initialLoans ?: listOf(
+            Loan(bookId = 1, memberId = 1, borrowedAt = LocalDate.now().minusDays(3)),
+            Loan(bookId = 5, memberId = 1, borrowedAt = LocalDate.now().minusDays(20)),
+            Loan(bookId = 6, memberId = 2, borrowedAt = LocalDate.now().minusDays(5)),
+            Loan(bookId = 1, memberId = 3, borrowedAt = LocalDate.now().minusDays(10)),
+        )
+    ).toMutableList()
 
     fun findBook(id: Int): Book? = books.find { it.id == id }
 

@@ -1,6 +1,8 @@
 package biblioteca.service
 
 import biblioteca.data.Library
+import biblioteca.data.LoanStore
+import biblioteca.data.ReturnStore
 import biblioteca.model.Book
 import biblioteca.model.Loan
 import java.text.Normalizer
@@ -11,8 +13,14 @@ import java.time.LocalDate
  *
  * Nada aqui dentro imprime na tela nem lê do teclado
  * Esta classe recebe perguntas e devolve dados. Quem conversa com o usuário é a camada de `cli`.
+ *
+ * Stores opcionais: no app gravam CSV; nos testes ficam null e o disco não é tocado.
  */
-class LibraryService(private val library: Library) {
+class LibraryService(
+    private val library: Library,
+    private val loanStore: LoanStore? = null,
+    private val returnStore: ReturnStore? = null,
+) {
 
     /**
      * O acervo inteiro, na ordem em que está cadastrado.
@@ -94,6 +102,7 @@ class LibraryService(private val library: Library) {
         }
 
         library.loans.add(Loan(bookId, memberId, LocalDate.now()))
+        persistLoans()
         val until = LocalDate.now().plusDays(LOAN_DAYS)
         val livres = availableCopies(bookId)
         return ActionResult.Ok(
@@ -113,10 +122,22 @@ class LibraryService(private val library: Library) {
             )
 
         library.loans.remove(loan)
+        persistLoans()
+        returnStore?.append(
+            bookId = loan.bookId,
+            memberId = loan.memberId,
+            borrowedAt = loan.borrowedAt,
+            returnedAt = LocalDate.now(),
+        )
         val livres = availableCopies(bookId)
         return ActionResult.Ok(
             "${member.name} devolveu \"${book.title}\".\nRestam $livres exemplar(es) livre(s)."
         )
+    }
+
+    /** Grava empréstimos ativos; nos testes [loanStore] é null e isso não faz nada. */
+    private fun persistLoans() {
+        loanStore?.save(library.loans)
     }
 
     /**

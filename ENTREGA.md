@@ -285,37 +285,98 @@ um `borrow`/`returnBook` não contamina o próximo caso. Usei o seed que já vem
 no acervo em vez de montar dados à mão: o custo cai e os cenários batem com o
 que o app mostra no terminal (`membro 1` atrasado, Duna com cópias emprestadas).
 
-Cinco testes, no ponto em que a regra mora:
+Cinco testes no service, no ponto em que a regra mora, e mais dois depois:
 
 1. `availableCopies(1)` — Duna tem 3 cópias e 2 empréstimos no seed → 1 livre.
 2. `search` — `solidao` (sem acento), `SARAMAGO` (caixa) e termo inexistente.
 3. `borrow(7, 1)` — Ana (membro 1) está atrasada → `Err` com “atrasada”.
-4. Diego (membro 4) empresta 3 vezes e falha no 4º → limite de 3.
+4. Diego (membro 4) empresta 3 vezes e falha no 4º → limite de 3 **sem** atraso
+   (a mensagem fala em empréstimos, não em “atrasada”).
 5. `returnBook(1, 3)` — Carla devolve Duna → `Ok` e livres sobe 1.
+6. `returnBook(1, 4)` — Diego não tem Duna → `Err` “não tem empréstimo ativo”.
+7. `LoanStore`: `save` → `load` no arquivo temp devolve a mesma lista; sem arquivo → `null`.
 
 Não testei o `Main` nem o parse de comando de novo: o `CommandTest` já cobre o
 CLI de entrada, e o bônus pedia as regras. Também não fiz helper/`@BeforeTest`
-nem assert da mensagem inteira — para este tamanho de projeto isso só aumentaria
-ruído.
+nem assert da mensagem inteira.
 
 ### Pseudocódigo
 
 ```text
-para cada teste:
+para cada teste de regra:
   library ← Library()          // seed fresco
   service ← LibraryService(library)
   chamar availableCopies / search / borrow / returnBook
   assertEquals / assertTrue no resultado
+
+LoanStore:
+  arquivo temp → save(lista) → load() == lista
+  arquivo inexistente → load() == null
 ```
 
 ## O que mudei no que já existia
 
-`src/test/kotlin/biblioteca/LibraryServiceTest.kt`: arquivo novo com os cinco
-testes acima.
+`src/test/kotlin/biblioteca/LibraryServiceTest.kt`: testes do service (incluindo
+devolver inexistente e limite sem atraso explícito).
+
+`src/test/kotlin/biblioteca/LoanStoreTest.kt`: save→load e load sem arquivo.
 
 Não alterei `LibraryService` nem o seed para “facilitar” o teste — os asserts
 seguem o comportamento que já estava na entrega.
 
 Rodar: `./gradlew test`.
 
+## Bônus — empréstimos em arquivo
+
+## Como pensei
+
+O acervo em memória some ao fechar o programa. O bônus pedia só os empréstimos
+persistindo. Separei I/O (`LoanStore` + `loans.csv`) da memória (`Library.loans`)
+e das regras (`LibraryService`).
+
+`load()` devolve `null` se o arquivo não existe (aí o `Library` usa o seed) e
+lista (mesmo vazia) se o arquivo existe. Assim “primeira vez” e “devolveu tudo”
+não se confundem. Depois de cada `borrow`/`returnBook` o service chama `save`
+quando tem store; nos testes o store fica `null` e o disco não é tocado.
+
+Na primeira execução o `Main` grava o seed no CSV. Nas seguintes, o arquivo é a
+fonte da verdade dos empréstimos. Linhas inválidas no CSV são ignoradas.
+
+### Pseudocódigo
+
+```text
+main:
+  loaded ← store.load()          // null = sem arquivo
+  library ← Library(loaded)      // null → seed; lista → arquivo
+  se loaded == null → store.save(seed)
+  service ← LibraryService(library, store)
+
+borrow / returnBook (Ok):
+  muda library.loans
+  store.save(library.loans)
+```
+
+## O que mudei no que já existia
+
+`Library`: construtor `initialLoans` opcional; seed só quando vem `null`.
+
+`LibraryService`: `loanStore` opcional + `persistLoans` após mutação.
+
+`Main.kt`: cria `LoanStore`, carrega, monta `Library`/`LibraryService`, grava seed
+na primeira vez.
+
+`LoanStore.kt`: arquivo novo (`load` / `save` em CSV).
+
+## Extra — histórico de devoluções
+
+Além dos ativos, cada `devolver` bem-sucedido faz `append` em `returns.csv`
+(`bookId,memberId,borrowedAt,returnedAt`). Sem load — só grava. Nos testes o
+`returnStore` fica `null`.
+
 ## O que ficou de fora / com mais tempo
+
+- Comando `devolucoes`: ler o `returns.csv` e mostrar tabela no app.
+- Renovar prazo: comando que estende `borrowedAt` / prazo sem devolver.
+- Reserva / fila: se não há exemplar livre, entrar numa fila.
+- Multa por atraso: na devolução atrasada, calcular dias × valor e mostrar na mensagem.
+- `livro <id>`: quem está com cada exemplar / histórico daquele título.
